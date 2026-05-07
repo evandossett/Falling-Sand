@@ -9,9 +9,9 @@ namespace Falling_Sand {
 
 		public Grid(int width, int height) {
 			Tiles = new Tile[height][];
-			for (int y = 0 ; y < height ; y++) {
+			for (int y = 0; y < height; y++) {
 				Tiles[y] = new Tile[width];
-				for (int x = 0 ; x < width ; x++) {
+				for (int x = 0; x < width; x++) {
 					Tiles[y][x] = new Tile();
 				}
 			}
@@ -25,7 +25,7 @@ namespace Falling_Sand {
 
 			Dictionary<Color, List<Rectangle>> grid = new Dictionary<Color, List<Rectangle>>();
 
-			for (int x = 0 ; x < width ; x++) {
+			for (int x = 0; x < width; x++) {
 				Rectangle r = new Rectangle();
 				Color c = Color.Black;
 
@@ -42,8 +42,8 @@ namespace Falling_Sand {
 					grid.Add(c, new List<Rectangle>() { new Rectangle(new Point(x * Window.tile_scale, 0 * Window.tile_scale), new Size(1, 1) * Window.tile_scale) });
 			}
 
-			for (int y = 1 ; y < height ; y++) {
-				for (int x = 0 ; x < width ; x++) {
+			for (int y = 1; y < height; y++) {
+				for (int x = 0; x < width; x++) {
 					Color c = Color.Black;
 
 					if (Tiles[y][x].sand != null)
@@ -64,7 +64,7 @@ namespace Falling_Sand {
 		}
 
 		public void SpawnSand(int index) {
-			if (index >= width)
+			if (index > width || index < 0)
 				throw new Exception();
 			else if (Tiles[0][index].sand != null)
 				return;
@@ -73,7 +73,7 @@ namespace Falling_Sand {
 		}
 
 		public void SpawnSand(int index, Sand sand) {
-			if (index >= width)
+			if (index > width || index < 0)
 				throw new Exception();
 			else if (Tiles[0][index].sand != null)
 				return;
@@ -96,8 +96,8 @@ namespace Falling_Sand {
 		public bool SimulateFrame() {
 			bool simulated = false;
 			List<Sand> simsand = new List<Sand>();
-			for (int y = height - 1 ; y >= 0 ; y--) {
-				for (int x = 0 ; x < width ; x++) {
+			for (int y = height - 1; y >= 0; y--) {
+				for (int x = 0; x < width; x++) {
 					if (Tiles[y][x].sand != null && !simsand.Contains(Tiles[y][x].sand ?? new Sand()) && y + 1 < height) {
 						if (Tiles[y + 1][x].sand == null) { //FALLING CHECK
 							simsand.Add(Tiles[y][x].sand);

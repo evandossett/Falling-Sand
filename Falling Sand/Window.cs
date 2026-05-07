@@ -127,10 +127,11 @@ namespace Falling_Sand {
 			if (e.Button != MouseButtons.Left)
 				return;
 
-			if (e.X >= 0 && e.X < form.Width && e.Y >= 0 && e.Y < form.Height) {
-				grid.SpawnSand(e.X / tile_scale, new Sand(current_preview_sand));
-				timer_hold_lmouse.Start();
-			}
+			int mouse_x = Math.Clamp(e.X, 0, resolution.Item1 * tile_scale - 1);
+			int mouse_y = Math.Clamp(e.Y, 0, resolution.Item2 * tile_scale - 1);
+
+			grid.SpawnSand(mouse_x / tile_scale, new Sand(current_preview_sand));
+			timer_hold_lmouse.Start();
 		}
 
 		public void OnMouseUp(object? sender, MouseEventArgs e) {
@@ -157,12 +158,12 @@ namespace Falling_Sand {
 		}
 
 		public void OnMouseHold(object? sender, EventArgs e) {
-			if (current_preview_index * tile_scale >= 0 && current_preview_index * tile_scale < form.Height)
+			if (current_preview_index * tile_scale >= 0 && current_preview_index * tile_scale < resolution.Item1 * tile_scale)
 				grid.SpawnSand(current_preview_index, new Sand(sands[current_sand_index]));
 		}
 
 		public void OnMouseMove(object? sender, MouseEventArgs e) {
-			if (e.X >= 0 && e.X < form.Width && e.Y >= 0 && e.Y < form.Height)
+			if (e.X >= 0 && e.X < resolution.Item1 * tile_scale && e.Y >= 0 && e.Y < resolution.Item2 * tile_scale)
 				current_preview_index = e.X / tile_scale;
 		}
 	}
