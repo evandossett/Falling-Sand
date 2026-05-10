@@ -2,15 +2,18 @@
 
 namespace Falling_Sand {
 	internal class Grid {
-		public Tile[][] Tiles; // (y, x) AKA inverted coordinate system
+		public Tile[][] Tiles;
 		private int height = 0;
 		private int width = 0;
 		private static readonly Random random = new Random((int)DateTime.UtcNow.Ticks);
+		private bool[][] updated;
 
 		public Grid(int width, int height) {
 			Tiles = new Tile[height][];
+			updated = new bool[height][];
 			for (int y = 0; y < height; y++) {
 				Tiles[y] = new Tile[width];
+				updated[y] = new bool[width];
 				for (int x = 0; x < width; x++) {
 					Tiles[y][x] = new Tile();
 				}
@@ -81,136 +84,96 @@ namespace Falling_Sand {
 			Tiles[0][index].sand = sand;
 		}
 
-		/**
-		 * Loop through each tile and find a piece of sand 
-		 * Follow one of the sand through the simulations if applicable:
-		 *	1. Falling - ensures sand falls until it hits sand or the floor 
-		 *	2. Overflow - ensures sand is following its surface area rule, pushing it until it hits a wall if it doesnt
-		 *	3. Pushing - ensures sand pushes any less dense sand up above itself
-		 * Continue to loop until no pieces of sand need to be simulated
-		 */
 		public void Simulate() {
 			while (SimulateFrame() == true) { SimulateFrame(); }
 		}
 
 		public bool SimulateFrame() {
 			bool simulated = false;
-			List<Sand> simsand = new List<Sand>();
+
+			for (int y = 0; y < height; y++) {
+				Array.Clear(updated[y], 0, width);
+			}
+
 			for (int y = height - 1; y >= 0; y--) {
 				for (int x = 0; x < width; x++) {
-					if (Tiles[y][x].sand != null && !simsand.Contains(Tiles[y][x].sand ?? new Sand()) && y + 1 < height) {
-						if (Tiles[y + 1][x].sand == null) { //FALLING CHECK
-							simsand.Add(Tiles[y][x].sand);
-							Tiles[y + 1][x].sand = Tiles[y][x].sand;
+					Sand currentSand = Tiles[y][x].sand;
+
+					if (currentSand == null || updated[y][x])
+						continue;
+
+					if (y + 1 < height) {
+
+						// FALLING CHECK
+						if (Tiles[y + 1][x].sand == null) {
+							Tiles[y + 1][x].sand = currentSand;
 							Tiles[y][x].sand = null;
+							updated[y + 1][x] = true;
 							simulated = true;
-						} //FALING CHECK
-						else if (Tiles[y + 1][x].sand.Density < Tiles[y][x].sand.Density) { //DENSITY CHECK
-							simsand.Add(Tiles[y][x].sand);
-							Sand sand = Tiles[y + 1][x].sand;
-							Tiles[y + 1][x].sand = Tiles[y][x].sand;
-							Tiles[y][x].sand = sand;
+							continue;
+						}
+
+						// DENSITY CHECK
+						if (Tiles[y + 1][x].sand.Density < currentSand.Density && !updated[y + 1][x]) {
+							Sand lighterSand = Tiles[y + 1][x].sand;
+							Tiles[y + 1][x].sand = currentSand;
+							Tiles[y][x].sand = lighterSand;
+
+							updated[y + 1][x] = true;
+							updated[y][x] = true;
 							simulated = true;
-						} //DENSITY CHECK
-						else { //SURFACE TENSION CHECK
-							int offset_check = 0;
-							int surface_tension = Tiles[y][x].sand.SurfaceTension;
-							while (true) {
-								if (offset_check > surface_tension || (x + offset_check >= width && x - offset_check < 0))
-									break;
+							continue;
+						}
 
-								if (offset_check + x < width && x + offset_check >= 0 && Tiles[y + 1][x + offset_check].sand == null && x - offset_check < width && x - offset_check >= 0 && Tiles[y + 1][x - offset_check].sand == null) {
-									switch (random.Next(2)) {
-										case 0:
-											Tiles[y + 1][x + offset_check].sand = Tiles[y][x].sand;
-											Tiles[y][x].sand = null;
-											simulated = true;
-											break;
-										case 1:
-											Tiles[y + 1][x - offset_check].sand = Tiles[y][x].sand;
-											Tiles[y][x].sand = null;
-											simulated = true;
-											break;
+						// SURFACE TENSION
+						int spread = currentSand.SurfaceTension;
+						if (spread > 0) {
+							bool moved = false;
+							int dir = random.Next(2) == 0 ? 1 : -1;
+
+							for (int i = 0; i < 2; i++) {
+								int stepX = dir;
+								for (int offset = 1; offset <= spread; offset++) {
+									int targetX = x + (stepX * offset);
+
+									if (targetX < 0 || targetX >= width)
+										break;
+
+									if (Tiles[y][targetX].sand != null)
+										break;
+
+									if (Tiles[y + 1][targetX].sand == null) {
+										Tiles[y + 1][targetX].sand = currentSand;
+										Tiles[y][x].sand = null;
+										updated[y + 1][targetX] = true;
+										simulated = true;
+										moved = true;
+										break;
 									}
 
-									break;
-								}
+									if (Tiles[y + 1][targetX].sand.Density < currentSand.Density && !updated[y + 1][targetX]) {
+										Sand lighterSand = Tiles[y + 1][targetX].sand;
+										Tiles[y + 1][targetX].sand = currentSand;
+										Tiles[y][x].sand = lighterSand;
 
-								if (offset_check + x < width && x + offset_check >= 0 && Tiles[y + 1][x + offset_check].sand == null) {
-									simsand.Add(Tiles[y][x].sand);
-									Tiles[y + 1][x + offset_check].sand = Tiles[y][x].sand;
-									Tiles[y][x].sand = null;
-									simulated = true;
-									break;
-								}
-
-								if (x - offset_check < width && x - offset_check >= 0 && Tiles[y + 1][x - offset_check].sand == null) {
-									simsand.Add(Tiles[y][x].sand);
-									Tiles[y + 1][x - offset_check].sand = Tiles[y][x].sand;
-									Tiles[y][x].sand = null;
-									simulated = true;
-									break;
-								}
-
-								if (offset_check + x < width && x + offset_check >= 0 && Tiles[y + 1][x + offset_check].sand.Density < Tiles[y][x].sand.Density) {
-									simsand.Add(Tiles[y][x].sand);
-									Tiles[y + 1][x + offset_check].sand = Tiles[y][x].sand;
-									Tiles[y][x].sand = null;
-									simulated = true;
-									break;
-								}
-
-								if (x - offset_check < width && x - offset_check >= 0 && Tiles[y + 1][x - offset_check].sand.Density < Tiles[y][x].sand.Density) {
-									simsand.Add(Tiles[y][x].sand);
-									Sand sand = Tiles[y + 1][x - offset_check].sand;
-									Tiles[y + 1][x - offset_check].sand = Tiles[y][x].sand;
-									int vertoff = 0;
-									while (true) {
-										if (Tiles[y + vertoff][x - offset_check].sand != null) {
-											Sand sand2 = Tiles[y + vertoff][x - offset_check].sand;
-											Tiles[y + vertoff][x - offset_check].sand = sand;
-											sand = sand2;
-											vertoff--;
-										}
-										else if (Tiles[y + vertoff][x - offset_check].sand == null) {
-											Tiles[y + vertoff][x - offset_check].sand = sand;
-											break;
-										}
+										updated[y + 1][targetX] = true;
+										updated[y][x] = true;
+										simulated = true;
+										moved = true;
+										break;
 									}
-									Tiles[y][x].sand = null;
-									simulated = true;
-									break;
 								}
 
-								if (x + offset_check < width && x + offset_check >= 0 && Tiles[y + 1][x + offset_check].sand.Density < Tiles[y][x].sand.Density) {
-									simsand.Add(Tiles[y][x].sand);
-									Sand sand = Tiles[y + 1][x + offset_check].sand;
-									Tiles[y + 1][x + offset_check].sand = Tiles[y][x].sand;
-									int vertoff = 0;
-									while (true) {
-										if (Tiles[y + vertoff][x + offset_check].sand != null) {
-											Sand sand2 = Tiles[y + vertoff][x + offset_check].sand;
-											Tiles[y + vertoff][x + offset_check].sand = sand;
-											sand = sand2;
-											vertoff--;
-										}
-										else if (Tiles[y + vertoff][x + offset_check].sand == null) {
-											Tiles[y + vertoff][x + offset_check].sand = sand;
-											break;
-										}
-									}
-									Tiles[y][x].sand = null;
-									simulated = true;
+								if (moved)
 									break;
-								}
-
-								offset_check++;
+								dir = -dir;
 							}
-						}//SURFACE TENSION CHECK
+							if (moved)
+								continue;
+						}
 					}
 				}
 			}
-
 			return simulated;
 		}
 	}
